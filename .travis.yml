@@ -1,4 +1,6 @@
 language: python
+git:
+  clone: false
 cache:
   pip: true
   directories:
@@ -8,17 +10,21 @@ python:
 services:
   - docker
 before_install:
+  - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then git clone https://github.com/${TRAVIS_PULL_REQUEST_SLUG}.git -b $TRAVIS_PULL_REQUEST_BRANCH $TRAVIS_PULL_REQUEST_SLUG; cd $TRAVIS_PULL_REQUEST_SLUG; fi
+  - if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then git clone https://github.com/${TRAVIS_REPO_SLUG}.git -b $TRAVIS_BRANCH $TRAVIS_REPO_SLUG; cd $TRAVIS_REPO_SLUG; fi
+  - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then git remote add pr https://24OI-bot:${GH_TOKEN}@github.com/${TRAVIS_PULL_REQUEST_SLUG}.git; fi
+  # - if [ "$TRAVIS_PULL_REQUEST" != "false" ]; then git fetch pr $TRAVIS_PULL_REQUEST_BRANCH; git checkout -f $TRAVIS_PULL_REQUEST_BRANCH; fi
   - curl -o- https://raw.githubusercontent.com/creationix/nvm/v0.33.11/install.sh | bash
   - source ~/.nvm/nvm.sh
   - nvm install 12
 install:
   # use config from master branch
-  - wget -O requirements.txt https://raw.githubusercontent.com/OI-wiki/OI-wiki/master/requirements.txt
+  # - wget -O requirements.txt https://raw.githubusercontent.com/OI-wiki/OI-wiki/master/requirements.txt
+  # - wget -O package.json https://raw.githubusercontent.com/OI-wiki/OI-wiki/master/package.json
+  # - wget -O package-lock.json https://raw.githubusercontent.com/OI-wiki/OI-wiki/master/package-lock.json
   - pip install -r requirements.txt
-  - wget -O package.json https://raw.githubusercontent.com/OI-wiki/OI-wiki/master/package.json
-  - wget -O package-lock.json https://raw.githubusercontent.com/OI-wiki/OI-wiki/master/package-lock.json
   - npm install -g clang-format # for clang-format
-  - npm install .
+  - npm ci
 script:
   - set -e
   - npx remark ./docs -o --silent
@@ -26,7 +32,12 @@ script:
   - git config --local user.email "15963390+24OI-bot@users.noreply.github.com"
   - git config --local user.name "24OI-bot"
   - git status
-  - if [ "$TRAVIS_PULL_REQUEST" == true ]; then git remote add pr "https://${GH_TOKEN}@github.com/${TRAVIS_PULL_REQUEST_SLUG}.git"; fi
-  - git remote -v
-  - if [[ $(git diff --stat) != '' ]]; then git add .; git commit -m 'style: format markdown files with remark-lint'; git push pr $TRAVIS_PULL_REQUEST_BRANCH; fi
+  - git diff --stat
+  - echo $TRAVIS_PULL_REQUEST_SLUG
+  - echo $TRAVIS_PULL_REQUEST_BRANCH
+  - echo $TRAVIS_PULL_REQUEST
+  - "if [[ $(git diff --stat) != \"\" ]] && [ \"$TRAVIS_PULL_REQUEST\" != \"false\" ]; then git add . && git commit -m \"style: format markdown files with remark-lint\" && git push pr $TRAVIS_PULL_REQUEST_BRANCH -v; (exit 1); fi"
+  # - git log
+  # - git diff --stat
+  # - if [[ $(git diff --stat) != '' ]]; then (exit 1); fi;
   - set +e
